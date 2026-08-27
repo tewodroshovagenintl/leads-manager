@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>ניהול לידים והיתרי עובדים זרים 2026 (ניתן למיון)</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #34495e;
+            --accent: #3498db;
+            --success: #27ae60;
+            --danger: #c0392b;
+            --bg: #f8f9fa;
+            --card-bg: #ffffff;
+            --text: #333333;
+            --border: #e1e8ed;
+        }
+        body { font-family: system-ui, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 20px; direction: rtl; }
+        .container { max-width: 1500px; margin: 0 auto; }
+        header { text-align: center; margin-bottom: 25px; }
+        h1 { color: var(--primary); margin-bottom: 8px; font-size: 26px; }
+        .controls { display: flex; justify-content: space-between; align-items: center; background: var(--card-bg); padding: 15px 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; gap: 15px; flex-wrap: wrap; }
+        .search-box { flex: 1; min-width: 280px; padding: 12px 16px; font-size: 15px; border: 1px solid var(--border); border-radius: 8px; outline: none; }
+        .filter-btn { padding: 12px 20px; background-color: var(--secondary); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; }
+        .filter-btn.active { background-color: var(--success); }
+        .table-container { background: var(--card-bg); border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); overflow-x: auto; max-height: 75vh; }
+        table { width: 100%; border-collapse: collapse; text-align: right; white-space: nowrap; }
+        th, td { padding: 12px 15px; border-bottom: 1px solid var(--border); font-size: 13.5px; }
+        th { background-color: var(--primary); color: white; position: sticky; top: 0; z-index: 10; cursor: pointer; user-select: none; }
+        th:hover { background-color: #34495e; }
+        th::after { content: " ↕️"; font-size: 11px; opacity: 0.7; }
+        tr:hover { background-color: #f1f4f8; }
+        tr.called-row { background-color: #e8f8f5 !important; opacity: 0.65; }
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 11.5px; font-weight: 700; }
+        .badge-green { background-color: #e8f8f5; color: var(--success); }
+        .badge-red { background-color: #fdebd0; color: var(--danger); }
+        a.phone-link, a.email-link { color: var(--accent); text-decoration: none; font-weight: 600; }
+        a.phone-link:hover, a.email-link:hover { text-decoration: underline; }
+        input.notes-input { width: 100%; min-width: 140px; border: 1px solid transparent; background: transparent; padding: 6px; font-size: 13.5px; border-radius: 4px; }
+        input.notes-input:focus { border-color: var(--accent); background: #fff; outline: none; }
+        .call-checkbox { width: 18px; height: 18px; cursor: pointer; accent-color: var(--success); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>📊 ניהול לידים והיתרי עובדים זרים (כולל מיון לפי כותרות)</h1>
+    </header>
+
+    <div class="controls">
+        <input type="text" id="searchInput" class="search-box" placeholder="חיפוש חופשי (שם חברה, ח.פ, טלפון, מייל...)" onkeyup="filterTable()">
+        <button id="filterUncalledBtn" class="filter-btn" onclick="toggleUncalledFilter()">הצג רק כאלה שעוד לא התקשרתי</button>
+    </div>
+
+    <div class="table-container">
+        <table id="leadsTable">
+            <thead>
+                <tr>
+                    <th style="width: 50px; text-align: center;">התקשרתי 📞</th>
+                    <th onclick="sortTable(1)">סטטוס ליד</th>
+                    <th onclick="sortTable(2)">שם חברה</th>
+                    <th onclick="sortTable(3)">ח.פ. / עוסק</th>
+                    <th onclick="sortTable(4)">יתרת היתרים</th>
+                    <th onclick="sortTable(5)">טלפון לחיץ 📞</th>
+                    <th onclick="sortTable(6)">מייל ✉️</th>
+                    <th onclick="sortTable(7)">מקור / סטטוס ייצוג משפטי</th>
+                    <th>הערות אישיות 📝</th>
+                </tr>
+            </thead>
+            <tbody id="tableBody">
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const leadsData = [
+        {name: "ש.ד.מ. לוגיסטיקה ותעסוקה בע\"מ", hp: "515106540", quota: "2", phone: "1700-501-510", email: "qmr.shdm@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "קאי מלונות וספא בע\"מ", hp: "516152014", quota: "6", phone: "08-6360000", email: "office@kahi.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קאלה ארועים בעמ", hp: "513411074", quota: "14", phone: "04-8411222", email: "gadi@kala.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קבוצת ב.א ברקת בע\"מ", hp: "514864602", quota: "3", phone: "", email: "borish283@walla.com", source: "ישיר / חברה", type: "green"},
+        {name: "קבוצת גולף א.ק בע\"מ", hp: "510289564", quota: "85", phone: "03-9135555", email: "ayalg@golfco.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קבוצת גולף א.ק בעמ", hp: "510289564", quota: "7", phone: "", email: "moti@lulservices.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קבוצת י.ר.מ שלמה ובניו (2013)", hp: "514959816", quota: "4", phone: "", email: "inbar@shevetachim.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קבוצת י.ר.מ שלמה ובניו בע\"מ", hp: "514959816", quota: "11", phone: "", email: "inbar@shevetachim.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קבוצת קלין מור בע\"מ", hp: "516150752", quota: "10", phone: "", email: "office@cleanmore.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קבוצת ר.ג.ב כח אדם והסעות", hp: "515512317", quota: "1", phone: "", email: "admin@shibcal.com", source: "ישיר / חברה", type: "green"},
+        {name: "קבוצת שגריר שירותי רכב", hp: "515158665", quota: "18", phone: "03-5689000", email: "david@shagrir.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קדם סהר", hp: "29430139", quota: "1", phone: "", email: "saharkedem@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "קדמת המיזוג בע\"מ", hp: "515196632", quota: "2", phone: "", email: "ori@kdhm.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קו-גול יוניטרייד בע\"מ", hp: "513911271", quota: "17", phone: "", email: "yosi_k@kogol.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קו ים שירותי נמל בע\"מ", hp: "516314861", quota: "6", phone: "", email: "boaz@almogsea.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קו לפליט בע\"מ", hp: "515486074", quota: "4", phone: "", email: "beni@kavpalit.com", source: "ישיר / חברה", type: "green"},
+        {name: "קוגול יוניטרייד בע\"מ", hp: "513911271", quota: "2", phone: "", email: "klilas@kogol.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קולורמיקס צבעים לתעשיה", hp: "514631696", quota: "2", phone: "", email: "colormixltd@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "קומט את פרוגס בע\"מ", hp: "511006579", quota: "12", phone: "", email: "ShlomiZ@comet-progress.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קונה בע\"מ", hp: "510621576", quota: "29", phone: "03-9271000", email: "adiel.hagai@kone.com", source: "ישיר / חברה", type: "green"},
+        {name: "קונטרה גלובל קבלנות והנדסה", hp: "516323516", quota: "13", phone: "", email: "roman@globalhr.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קידס איירפורט בע\"מ", hp: "513686964", quota: "67", phone: "", email: "Jess@mybaby.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קיט ניקיון בע\"מ", hp: "515997310", quota: "1", phone: "", email: "kitnikayon@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "קיי טי יבוא ושיווק בע\"מ", hp: "514474410", quota: "62", phone: "", email: "ori@leafresh.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קייטרינג גבאי בע\"מ", hp: "511637928", quota: "2", phone: "", email: "alon@e-g.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קייטרינג גן עדן (עמר) בע\"מ", hp: "512560921", quota: "2", phone: "", email: "hely.ganeden@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "קייטרינג היצירה", hp: "512733791", quota: "1", phone: "", email: "ofersbag@bezeqint.net", source: "ישיר / חברה", type: "green"},
+        {name: "קייטרינג השרון מס.1 (1993)", hp: "511762692", quota: "23", phone: "", email: "liorc@luca.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קייטרינג ו.מ בע\"מ", hp: "512563776", quota: "5", phone: "", email: "emeraldgarden2010@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "קייטרינג מעדנות נועם", hp: "513625962", quota: "3", phone: "", email: "maadanot@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "קייטרינג רוט בע\"מ", hp: "516327053", quota: "3", phone: "", email: "office@kahi.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קייטרינג רפאל ובניו בע\"מ", hp: "514541267", quota: "5", phone: "", email: "netanel@crefael.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קיסר השכרת ציוד לאירועים", hp: "515956373", quota: "2", phone: "", email: "benzakenir@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "קירור לי בע\"מ", hp: "516069036", quota: "4", phone: "", email: "office@peerhabasar.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קירשנר פרוייקטים ירוקים בע\"מ", hp: "515187383", quota: "1", phone: "", email: "amitk22677@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "קלאס איי סדנא לאיבזור רכב בע\"מ", hp: "513623710", quota: "2", phone: "", email: "shlomi@class-a.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קלין אנד סמייל", hp: "516286911", quota: "1", phone: "", email: "office@clean-and-smile.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קלין סטאר שרותים בע\"מ", hp: "514391838", quota: "6", phone: "", email: "cleanstar@clean-star.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קלין סטאר שרותים מוניציפאליים", hp: "514391838", quota: "10", phone: "", email: "irit@clean-star.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קלינור אחזקה בע\"מ", hp: "513343947", quota: "15", phone: "", email: "oshri-d@mikud4u.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קלינור שרותים לישראל בע\"מ", hp: "512699364", quota: "17", phone: "", email: "yariv-m@cleanor.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קנקון מוצרים בע\"מ", hp: "511573354", quota: "13", phone: "09-9566666", email: "uzi@cancun.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קסטרו מודל בע\"מ", hp: "520037649", quota: "17", phone: "03-7700111", email: "sebik@castro.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קסנטיני 1991", hp: "511636771", quota: "3", phone: "", email: "edna14k@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "קצביה פמילי מרקט בע\"מ", hp: "516910932", quota: "4", phone: "", email: "orenmeat91@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "קצביית שרונה מקבוצת לגזיאל", hp: "516709839", quota: "2", phone: "", email: "b.lagziel.bro@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "קרביץ בע\"מ", hp: "510674039", quota: "26", phone: "03-5798888", email: "ilaniti@kravitz.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קריאייטיב פיתוח בע\"מ", hp: "514332196", quota: "2", phone: "", email: "creative2020pz@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "קריסטלינו בע\"מ", hp: "515364511", quota: "26", phone: "", email: "Ran@cristalino.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קרל ברג", hp: "513049221", quota: "3", phone: "", email: "hanaa_51@walla.com", source: "ישיר / חברה", type: "green"},
+        {name: "קרמיק דיפו בע\"מ", hp: "513825943", quota: "5", phone: "", email: "aharash@harash.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קרן אור בלמס בע\"מ", hp: "512564220", quota: "2", phone: "", email: "acct@kobalmas.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "קרן משאבות בטון בע\"מ", hp: "510682438", quota: "4", phone: "", email: "kerenavi1@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "קשת טעמים בע\"מ", hp: "513238402", quota: "85", phone: "04-6150100", email: "maya@keshet-teamim.com", source: "ישיר / חברה", type: "green"},
+        {name: "ר.דיאנה בע\"מ", hp: "515963544", quota: "1", phone: "", email: "rshadshiblii@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "ר.ח.האלופים בע\"מ", hp: "515802114", quota: "1", phone: "", email: "r.h.halofim.ltd2019@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "ר.מ אבו מוך תשתיות השקעות", hp: "515224285", quota: "5", phone: "", email: "r.m.abumokh@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "ר.סגרון החלק הטוב בנתיבות", hp: "512260225", quota: "2", phone: "", email: "ISCA@RSIGRON.CO.IL", source: "ישיר / חברה", type: "green"},
+        {name: "ר.ק.ל.ט אחזקות", hp: "515207546", quota: "13", phone: "", email: "tlvrklt@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "רדאר גיוס והשמה בע\"מ", hp: "514618040", quota: "5", phone: "", email: "renald@radar.org.il", source: "ישיר / חברה", type: "green"},
+        {name: "רוטנה מידל איסט בעמ", hp: "513600676", quota: "5", phone: "", email: "ahmad.ha6@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "רויאל ישראל ניקיון בעמ", hp: "515878999", quota: "15", phone: "", email: "Office@royal-grp.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "רול נרקיסים בע\"מ", hp: "516922085", quota: "3", phone: "", email: "yossi_r7@walla.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "רונטל בניה ומערכות בע\"מ", hp: "513335711", quota: "1", phone: "", email: "talh@rontal-ltd.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "רוני פנחס פיגומים בע\"מ", hp: "516578192", quota: "1", phone: "", email: "Roni10145@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "רוקח עמוס- מוסך מטלון", hp: "51402162", quota: "1", phone: "", email: "dana.ror@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "רחום דני יבוא שיווק וסחר מזון", hp: "512465154", quota: "4", phone: "", email: "dragond23567@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "ריטיילורס בע\"מ", hp: "514211457", quota: "9", phone: "03-9369000", email: "hr@fox.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "ריין גן אירועים בע\"מ", hp: "515985091", quota: "5", phone: "", email: "mapalimrishon@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "ריינו שרותי כח אדם ובטחון", hp: "515611630", quota: "1", phone: "", email: "finance1@taglit-group.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "רייף בייקרי בע\"מ", hp: "515809846", quota: "2", phone: "", email: "omarm@reefbakery.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "רין (ג.ע) ניהול פרויקטים", hp: "515041150", quota: "1", phone: "", email: "RIN220MP@GMAIL.COM", source: "ישיר / חברה", type: "green"},
+        {name: "רכב בית אל - שרותי רכב בע\"מ", hp: "512440561", quota: "2", phone: "", email: "bracha@meitavcar.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "רמי לוי שיווק השקמה בע\"מ", hp: "513770669", quota: "150", phone: "02-5884444", email: "Eyal.av@rami-levy.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "רעות מוטורס בע\"מ", hp: "516104049", quota: "1", phone: "", email: "reutmotors@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "רף אלון", hp: "27837863", quota: "2", phone: "", email: "liatraff@walla.com", source: "ישיר / חברה", type: "green"},
+        {name: "רפאל לביא יבוא והפצה בע\"מ", hp: "516822376", quota: "1", phone: "", email: "Evyatar@dlfood.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "רשף ניקיון ואחזקה בע\"מ", hp: "512476391", quota: "3", phone: "03-5762222", email: "orit@tigbur.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "רשת בטחון בע\"מ", hp: "511693103", quota: "13", phone: "03-9226688", email: "hani@enosh.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "רשת בתי מאפה אלמכתר", hp: "514530526", quota: "5", phone: "", email: "mh514534205@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "ש.א.מ. מרכז הגז בע\"מ", hp: "512303991", quota: "7", phone: "", email: "sivanp@m-gas.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "ש.ב ריינבו בע\"מ", hp: "515832582", quota: "3", phone: "", email: "s.b.rainbow.ltd@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "ש.ח מרכז שירות ארצי בע\"מ", hp: "514736248", quota: "5", phone: "", email: "idan@fransis.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "ש.ל. אדומים בע\"מ", hp: "514230093", quota: "3", phone: "", email: "levanonlaundry@levanonlaundry.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "ש.פ אירועים בעמ", hp: "515545853", quota: "4", phone: "", email: "alon.dervish@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "ש.שלמה רכב בע\"מ", hp: "513763219", quota: "19", phone: "03-9541111", email: "eyalg@shlomo.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שאש שרותי שמירה ונקיון 2001", hp: "513151860", quota: "2", phone: "", email: "shs2001@012.net.il", source: "ישיר / חברה", type: "green"},
+        {name: "שבולת פתרונות ניהול ושרות בע\"מ", hp: "514042738", quota: "14", phone: "", email: "accounts@chibolet.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שגור חברה לשיווק ומסחר בע\"מ", hp: "514506138", quota: "4", phone: "", email: "hatem.yona@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "שהרבני יעקב יקי", hp: "36518231", quota: "3", phone: "", email: "yakiananas@hotmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "שובל פיתוחים בע\"מ", hp: "516507886", quota: "1", phone: "", email: "motidudi@bezeqint.net", source: "ישיר / חברה", type: "green"},
+        {name: "שופרסל בע\"מ", hp: "520022732", quota: "400", phone: "03-9485555", email: "ReutR@shufersal.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שוק העיר (ט.ע.מ.ס)", hp: "515121630", quota: "150", phone: "", email: "ellap@bsade.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שוק הרצל קמעונאות שותפות", hp: "540311420", quota: "18", phone: "", email: "dudue@duduezra.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שחמורוב יבוא ושיווק בע\"מ", hp: "511511529", quota: "1", phone: "", email: "ayelet@shachamorov.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שחק מעליות וסוכנויות בעמ", hp: "511638421", quota: "2", phone: "", email: "orit-rainhartz@shachak-lift.com", source: "ישיר / חברה", type: "green"},
+        {name: "שטאל התמר אחזקות בע\"מ", hp: "514235654", quota: "6", phone: "", email: "shtal2025@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "שטל הנדסה בע\"מ", hp: "511723967", quota: "5", phone: "", email: "josef@shatal.com", source: "ישיר / חברה", type: "green"},
+        {name: "שיא מיטב השקעות בע\"מ", hp: "513864124", quota: "1", phone: "", email: "aryebaron@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "שיאים - שירותי תחזוקה וקבלנות", hp: "511461691", quota: "2", phone: "", email: "noam.vaddai@tmprotection.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שידב פלסטיקה בע\"מ", hp: "512196718", quota: "4", phone: "", email: "ilanaod@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "שיווק האור בע\"מ", hp: "516698602", quota: "4", phone: "", email: "shivukor22@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "שיווק המאה (מסחר) 2002", hp: "513338749", quota: "35", phone: "", email: "sarits@shivuk100.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שיווק העשור ירקות הזהב בע\"מ", hp: "514404615", quota: "2", phone: "", email: "SRUL_22@WALLA.COM", source: "ישיר / חברה", type: "green"},
+        {name: "שיווק מזון הזהב בע\"מ", hp: "515177772", quota: "4", phone: "", email: "inna@hazahav.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שיווק פרי וברכה צפריר 2018", hp: "515855013", quota: "2", phone: "", email: "alonmgi@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "שייקביץ מוצרי בשר בע\"מ", hp: "516045101", quota: "2", phone: "", email: "9606663@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "שילוח זאב", hp: "50063411", quota: "1", phone: "", email: "amigr123@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "שינוי השמה וניהול בע\"מ", hp: "515573541", quota: "1", phone: "", email: "SHARONAVANONO@GMAIL.COM", source: "ישיר / חברה", type: "green"},
+        {name: "שיר בן קייטרינג בע\"מ", hp: "512251604", quota: "19", phone: "", email: "ben@shir-ben.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שירה חברה לתיקון משאיות בעמ", hp: "511494122", quota: "3", phone: "", email: "riva@shiras.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שירותי רכב וטרקטורים- דודי", hp: "513885491", quota: "1", phone: "", email: "etis232@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "שיש אלוני בע\"מ", hp: "511409716", quota: "20", phone: "03-9003000", email: "birank@alony.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שלג לבן 1986 בע\"מ", hp: "511110975", quota: "31", phone: "", email: "eli@bk.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שלדון אחזקות בע\"מ", hp: "515673036", quota: "1", phone: "", email: "boazkal@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "שלום מרקט בע\"מ", hp: "515594042", quota: "3", phone: "", email: "shalommarket1@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "שלטל הובלות בע\"מ", hp: "512557562", quota: "5", phone: "", email: "shlomi@shaltal.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שלי שיווק פירות וירקות בע\"מ", hp: "514829316", quota: "2", phone: "", email: "ovadyaorel@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "שלמה רשת מוסכים ושירותי דרך", hp: "512304056", quota: "10", phone: "03-9541111", email: "nadavk@shlomo.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שלמה תחבורה בע\"מ", hp: "514065457", quota: "16", phone: "03-9541111", email: "Doron@shlomo.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שם טוב פרזול בע\"מ", hp: "513768994", quota: "4", phone: "", email: "nir@pirzulst.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שמואל עדי אשר", hp: "24498412", quota: "2", phone: "", email: "adipart14@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "שמורתה אירועים בע\"מ", hp: "514262062", quota: "15", phone: "", email: "info@shmurata.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שמיים כחולים בעמק", hp: "516889946", quota: "4", phone: "", email: "ovadyaorel@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "שמיר י. איתן", hp: "511490476", quota: "4", phone: "", email: "noam.vaddai@tmprotection.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שערי חורי תעשיות בע\"מ", hp: "513185751", quota: "1", phone: "", email: "meirhuri@hurigates.com", source: "ישיר / חברה", type: "green"},
+        {name: "שפיר רונן", hp: "59571836", quota: "1", phone: "", email: "Shafir65@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "שפע ברכה פרימדונה בע\"מ", hp: "514819911", quota: "1", phone: "", email: "idan@kedem-ins.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שפע גל שיווק בשר בע\"מ", hp: "515271351", quota: "3", phone: "", email: "officegal10@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "שפע הצלחה ולוגיסטיקה", hp: "520039835", quota: "36", phone: "", email: "florence@p-i.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "שקד דגני נכסים בע\"מ", hp: "514758051", quota: "3", phone: "", email: "hezi@idshaked.com", source: "ישיר / חברה", type: "green"},
+        {name: "שקד שירותי ניקיון -נווה הע", hp: "514259191", quota: "1", phone: "", email: "asi@shaked-s.com", source: "ישיר / חברה", type: "green"},
+        {name: "שרות שדה לחקלאי בע\"מ", hp: "514173988", quota: "1", phone: "", email: "sherot.sade@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "שרותי מזון יואב בע:מ", hp: "512236977", quota: "29", phone: "", email: "chefhatab@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "שרית אחים כץ", hp: "540234143", quota: "1", phone: "", email: "nadav@nb-g.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "ת.מ.ם יזמות והסעדה בע\"מ", hp: "513617373", quota: "3", phone: "", email: "tamamizik@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "תאנה ורימון בע\"מ", hp: "515175354", quota: "6", phone: "", email: "moshikotn@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "תבור בני מוסך החוף בע\"מ", hp: "514163047", quota: "1", phone: "", email: "ahofyavne1@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "תבליני רדוש בע\"מ", hp: "512713637", quota: "1", phone: "", email: "AMIR.RADOS@GMAIL.COM", source: "ישיר / חברה", type: "green"},
+        {name: "תגלית שירותי ניקיון ותחזוקה", hp: "513639971", quota: "6", phone: "", email: "finance1@taglit-group.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "תדהר תעשיות שלטים בע\"מ", hp: "514293406", quota: "2", phone: "", email: "hemic@t-s-i.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "2020 יום השחר בע\"מ", hp: "516250511", quota: "1", phone: "", email: "tomhashahar@gmail.com", source: "ישיר / חברה", type: "green"},
+        {name: "תוצרת חקלאית מובחרת בע\"מ", hp: "513236257", quota: "34", phone: "03-9211111", email: "eyalc@hazi-hinam.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "תמוז סחר בע\"מ (1983)", hp: "510963580", quota: "3", phone: "", email: "ran@tammuztrade.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "תעבורה אחזקות 1977", hp: "512562422", quota: "40", phone: "03-9209999", email: "lior@taavura.co.il", source: "ישיר / חברה", type: "green"},
+        {name: "תעשיה 9 אירועים בעמ", hp: "515203925", quota: "1", phone: "", email: "rafi.pom@gmail.com", source: "ישיר / חברה", type: "green"},
+        
+        // מיוצגים / לא רלוונטי
+        {name: "שף 4 בע\"מ", hp: "513387050", quota: "3", phone: "", email: "idansh.adv@gmail.com", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "א. אלגרבאוי כוח אדם בע\"מ", hp: "516896032", quota: "1", phone: "", email: "lishai@melamedlaw.co.il", source: "מיוצג ע\"י עו\"ד מלמד", type: "red"},
+        {name: "א.מ ירקות פרי ארצנו 2001 אילת", hp: "513171603", quota: "6", phone: "", email: "Global-Mobility@Shibolet.com", source: "מיוצג ע\"י שבלת", type: "red"},
+        {name: "א.מ. אלפא שירותים והשקעות בע\"מ", hp: "516460581", quota: "2", phone: "", email: "lishai@melamedlaw.co.il", source: "מיוצג ע\"י עו\"ד מלמד", type: "red"},
+        {name: "א.מ. עסקים-אלבז מאיר בע\"מ", hp: "514865757", quota: "2", phone: "", email: "ruchama@law-in.co.il", source: "מיוצג ע\"י עו\"ד רוחמה", type: "red"},
+        {name: "א.ש ברזל בעמ", hp: "514708155", quota: "2", phone: "", email: "yd-permit@yd-law.co.il", source: "מיוצג ע\"י משרד עו\"ד", type: "red"},
+        {name: "אבו עאבד איהם בע\"מ", hp: "516086402", quota: "1", phone: "", email: "lishai@melamedlaw.co.il", source: "מיוצג ע\"י עו\"ד מלמד", type: "red"},
+        {name: "אברהם שריזלי ובנו בע\"מ", hp: "510711716", quota: "9", phone: "", email: "permits@gcblaws.com", source: "מיוצג ע\"י משרד עו\"ד", type: "red"},
+        {name: "אברז'ל אלן", hp: "27212901", quota: "1", phone: "", email: "ruchama@law-in.co.il", source: "מיוצג ע\"י משרד עו\"ד", type: "red"},
+        {name: "אוהד חקלאות ושיווק בע\"מ", hp: "516899812", quota: "2", phone: "", email: "Global-Mobility@Shibolet.com", source: "מיוצג ע\"י חברת ליווי", type: "red"},
+        {name: "אוטו לוקס ישראל בע\"מ", hp: "512057241", quota: "6", phone: "", email: "ruchama@law-in.co.il", source: "מיוצג ע\"י משרד עו\"ד", type: "red"},
+        {name: "אקוסיק בע\"מ", hp: "515625317", quota: "5", phone: "", email: "ADVA@PHR.CO.IL", source: "מיוצג ע\"י משרד עו\"ד", type: "red"},
+        {name: "אראל תוצרת חקלאית בע\"מ", hp: "513796003", quota: "6", phone: "", email: "lishai@melamedlaw.co.il", source: "מיוצג ע\"י עו\"ד מלמד", type: "red"},
+        {name: "ארגמן סחר בינלאומי בע\"מ", hp: "512570961", quota: "3", phone: "", email: "idansh.adv@gmail.com", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "בדירקו השקעות בע\"מ", hp: "514879766", quota: "1", phone: "", email: "Lishai@melamedlaw.co.il", source: "מיוצג ע\"י עו\"ד מלמד", type: "red"},
+        {name: "ביג מקס", hp: "515456002", quota: "15", phone: "", email: "Chagit@wz-law.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "ג'וב פאוור בע\"מ", hp: "516876786", quota: "1", phone: "", email: "liav@melamedlaw.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "ג'וליה מעדני בשר בע\"מ", hp: "515008399", quota: "12", phone: "", email: "idansh.adv@gmail.com", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "ג'י טי נדלן בע\"מ", hp: "515763894", quota: "1", phone: "", email: "ruchama@law-in.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "גרין רהוט ועיצוב גן בע\"מ", hp: "513778936", quota: "7", phone: "", email: "ruchama@law-in.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "דוד צפניק ובניו בע\"מ", hp: "510642341", quota: "17", phone: "", email: "permits@gcblaws.com", source: "מיוצג ע\"י משרד עו\"ד", type: "red"},
+        {name: "דודו עזרא בע\"מ", hp: "513905398", quota: "14", phone: "", email: "ADI11CPA@GMAIL.COM", source: "מיוצג ע\"י מייצג/רו\"ח", type: "red"},
+        {name: "דור אלון ניהול מתחמים קמעונאיים", hp: "512869439", quota: "100", phone: "", email: "permits@gcblaws.com", source: "מיוצג ע\"י משרד עו\"ד", type: "red"},
+        {name: "דין שיווק וקליה 2021 בע\"מ", hp: "516434669", quota: "3", phone: "", email: "daniellaw@shkedia.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "דלי קייט קלאס קייטרינג בע\"מ", hp: "514260348", quota: "2", phone: "", email: "Global-Mobility@Shibolet.com", source: "מיוצג ע\"י חברת ליווי", type: "red"},
+        {name: "דניאל לבניין בע\"מ", hp: "516333358", quota: "2", phone: "", email: "ruchama@law-in.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "דניאלי בסביבה בע\"מ", hp: "512683236", quota: "1", phone: "", email: "adva@phr.co.il", source: "מיוצג ע\"י מייצג", type: "red"},
+        {name: "האחים בן עיון שיווק וסחר", hp: "515538585", quota: "3", phone: "", email: "lishai@melamedlaw.co.il", source: "מיוצג ע\"י עו\"ד מלמד", type: "red"},
+        {name: "החברה הדרומית לשיווק בע\"מ", hp: "510183627", quota: "64", phone: "", email: "permits@gcblaws.com", source: "מיוצג ע\"י משרד עו\"ד", type: "red"},
+        {name: "הצפון שרונה לוגיסטיקה והפצה", hp: "512982232", quota: "6", phone: "", email: "permits@gcblaws.com", source: "מיוצג ע\"י משרד עו\"ד", type: "red"},
+        {name: "ויקטורי רשת סופרמרקטים בע\"מ", hp: "514068980", quota: "45", phone: "", email: "legal@victory1.co.il", source: "מיוצג ע\"י מחלקה משפטית", type: "red"},
+        {name: "וקרט מאפים בע\"מ", hp: "515561603", quota: "9", phone: "", email: "idansh.adv@gmail.com", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "זיקו דגים בע\"מ", hp: "511687857", quota: "2", phone: "", email: "permits@gcblaws.com", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "ח.ג עמית בע\"מ", hp: "512684143", quota: "2", phone: "", email: "ruchama@law-in.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "חגי הכח עבודות עפר בע\"מ", hp: "513636324", quota: "1", phone: "", email: "RUCHAMA@LAW-IN.CO.IL", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "טיב טעם רשתות בע\"מ", hp: "512792714", quota: "52", phone: "", email: "advam@tivtaam.co.il", source: "מיוצג ע\"י החברה", type: "red"},
+        {name: "י.ל.ג מוצרי מזון בע\"מ (1986)", hp: "511109639", quota: "3", phone: "", email: "idansh.adv@gmail.com", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "יהב שיווק מזון בע\"מ", hp: "513617324", quota: "1", phone: "", email: "Idansh.adv@gmail.com", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "יהודה א. כח אדם בע\"מ", hp: "516600947", quota: "1", phone: "", email: "ytaadvice2020@gmail.com", source: "מיוצג ע\"י מייצג", type: "red"},
+        {name: "יהודה חיון ובניו בע\"מ", hp: "511129173", quota: "1", phone: "", email: "ruchama@law-in.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "כוכב לבן שירותי ניקיון בע\"מ", hp: "515240323", quota: "2", phone: "", email: "lishai@melamedlaw.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "כל דגן בעמ", hp: "513836205", quota: "1", phone: "", email: "Sela.advocate@gmail.com", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "כנפי רוח הסעדה פרוייקטים", hp: "516883915", quota: "5", phone: "", email: "yd-permit@yd-law.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "לדיקו ליפט בע\"מ", hp: "514123033", quota: "3", phone: "", email: "gcohen@fbclawyers.com", source: "מיוצג ע\"י משרד עו\"ד", type: "red"},
+        {name: "לוי בת שבע בטי", hp: "40361552", quota: "1", phone: "", email: "ruchama@law-in.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "לוייתן סחר ומוצרים חקלאיים", hp: "511541864", quota: "13", phone: "", email: "yd-permit@yd-law.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "לין שון ספנות בע\"מ", hp: "514934272", quota: "2", phone: "", email: "ruchama@law-in.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "מ.ס פינוי אשפה בע\"מ", hp: "513402784", quota: "3", phone: "", email: "ruchama@law-in.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "מוסך רביע 2009 בע\"מ", hp: "514311356", quota: "1", phone: "", email: "Bariadva@gmail.com", source: "מיוצג ע\"י מייצג", type: "red"},
+        {name: "מוצרי איכות אמריקאים בע\"מ", hp: "512250705", quota: "1", phone: "", email: "yd-permit@yd-law.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "מור חברה לשווק מוצרי בניה", hp: "511747313", quota: "2", phone: "", email: "permits@gcblaws.com", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "מוריה שירותי ניקיון אחזקה", hp: "512370693", quota: "21", phone: "", email: "law.sharvit@gmail.com", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "מושיקו גינון בע\"מ", hp: "515501856", quota: "4", phone: "", email: "yd-permit@yd-law.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "מיסמי כח אדם בע\"מ", hp: "512205238", quota: "3", phone: "", email: "Global-Mobility@Shibolet.com", source: "מיוצג ע\"י חברת ליווי", type: "red"},
+        {name: "מיקה מקס", hp: "514880558", quota: "10", phone: "", email: "Chagit@wz-law.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "מירון מאפה זהב בע\"מ", hp: "514310242", quota: "4", phone: "", email: "office@law-sabag.co.il", source: "מיוצג ע\"י משרד עו\"ד", type: "red"},
+        {name: "מקס (רשת חנויות)", hp: "514234913", quota: "52", phone: "", email: "Chagit@wz-law.co.il", source: "מיוצג ע\"י משרד עו\"ד", type: "red"},
+        {name: "משק 74 נ.ז בע\"מ", hp: "516521457", quota: "3", phone: "", email: "Global-Mobility@Shibolet.com", source: "מיוצג ע\"י חברת ליווי", type: "red"},
+        {name: "נ.א תהילה בע\"מ", hp: "514611417", quota: "1", phone: "", email: "RUCHAMA@LAW-IN.CO.IL", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "נאות דורית בע\"מ", hp: "511539033", quota: "4", phone: "", email: "lishai@melamedlaw.co.il", source: "מיוצג ע\"י עו\"ד מלמד", type: "red"},
+        {name: "ס.י.מעוז אחזקה ניקיון ושירותים", hp: "514723485", quota: "8", phone: "", email: "lishai@melamedlaw.co.il", source: "מיוצג ע\"י עו\"ד מלמד", type: "red"},
+        {name: "סדר באושר בע\"מ", hp: "515961217", quota: "43", phone: "", email: "lishai@melamedlaw.co.il", source: "מיוצג ע\"י עו\"ד מלמד", type: "red"},
+        {name: "סופר ברקת קמעונאות בע\"מ", hp: "513376491", quota: "4", phone: "", email: "advocate@avivim-ltd.co.il", source: "מיוצג ע\"י מייצג", type: "red"},
+        {name: "סלאח דאבח ובניו בע\"מ", hp: "511752503", quota: "88", phone: "", email: "permits@gcblaws.com", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "סעדה דגים בע\"מ", hp: "515358513", quota: "3", phone: "", email: "idansh.adv@gmail.com", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "פוקרא אספקת עובדים בע\"מ", hp: "515877926", quota: "1", phone: "", email: "lishai@melamedlaw.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "פרזגור פוד בע\"מ", hp: "511289043", quota: "1", phone: "", email: "yd-permit@yd-law.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "צוות 5 אבטחה בע\"מ", hp: "513832394", quota: "15", phone: "", email: "yd-permit@yd-law.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "צמיגי הולכי דרכים בע\"מ", hp: "516388667", quota: "1", phone: "", email: "ruchama@law-in.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "קבוצת המוביל בחדש בע\"מ", hp: "514215573", quota: "21", phone: "", email: "office@esfirm-law.co.il", source: "מיוצג ע\"י משרד עו\"ד", type: "red"},
+        {name: "קבוצת טלאור כראדי בע\"מ", hp: "514183862", quota: "7", phone: "", email: "ruchama@law-in.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "קונדיטוריה האחים-טעמים בע\"מ", hp: "513312090", quota: "11", phone: "", email: "ruchama@law-in.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "קיי.טי. יבוא ושיווק בע\"מ", hp: "514474410", quota: "83", phone: "", email: "idansh.adv@gmail.com", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "קייטרינג התעשיינים בע\"מ", hp: "513267369", quota: "2", phone: "", email: "Global-Mobility@Shibolet.com", source: "מיוצג ע\"י חברת ליווי", type: "red"},
+        {name: "קלורסטאר פרוייקטים בע\"מ", hp: "514714344", quota: "2", phone: "", email: "daniel@larin-adv.com", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "רונן לוריא ביצוע פרויקטים בע\"מ", hp: "516728086", quota: "1", phone: "", email: "lishai@melamedlaw.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "רלקס הנדסה בע\"מ", hp: "512319385", quota: "4", phone: "", email: "cpa@toyota-ralex.co.il", source: "מיוצג ע\"י רו\"ח", type: "red"},
+        {name: "רמ ק.ר.מ סחר בינלאומי", hp: "512129669", quota: "4", phone: "", email: "yossikrlaw@gmail.com", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "שחק א.ב. מוסכים בע\"מ", hp: "511803256", quota: "5", phone: "", email: "lawkimhi@gmail.com", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "שלמה תייר בע\"מ", hp: "513446591", quota: "13", phone: "", email: "permits@gcblaws.com", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "שמחה זה אנחנו בע\"מ", hp: "511738650", quota: "40", phone: "", email: "Global-Mobility@Shibolet.com", source: "מיוצג ע\"י חברת ליווי", type: "red"},
+        {name: "ת. תאיר חומרי בנין בע\"מ", hp: "515909679", quota: "2", phone: "", email: "ruchama@law-in.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"},
+        {name: "תמם שלום", hp: "54033105", quota: "1", phone: "", email: "yael@sylaw.co.il", source: "מיוצג ע\"י עו\"ד", type: "red"}
+    ];
+
+    function renderTable(data = leadsData) {
+        const tbody = document.getElementById("tableBody");
+        tbody.innerHTML = "";
+        
+        data.forEach((lead, index) => {
+            const id = index + 1;
+            const isGreen = lead.type === "green";
+            const badgeClass = isGreen ? "badge-green" : "badge-red";
+            const badgeText = isGreen ? "🟢 ליד חם (ישיר)" : "🔴 מיוצג / לא רלוונטי";
+            const phoneDisplay = lead.phone ? `<a href="tel:${lead.phone}" class="phone-link">${lead.phone}</a>` : `<a href="tel:" class="phone-link">הוסף טלפון</a>`;
+
+            const tr = document.createElement("tr");
+            tr.setAttribute("data-id", id);
+            tr.innerHTML = `
+                <td style="text-align: center;"><input type="checkbox" class="call-checkbox" onchange="updateRowStatus(this)"></td>
+                <td><span class="badge ${badgeClass}">${badgeText}</span></td>
+                <td>${lead.name}</td>
+                <td>${lead.hp}</td>
+                <td>${lead.quota}</td>
+                <td>${phoneDisplay}</td>
+                <td><a href="mailto:${lead.email}" class="email-link">${lead.email}</a></td>
+                <td>${lead.source}</td>
+                <td><input type="text" class="notes-input" placeholder="הקלד הערה..." oninput="saveNote(this)"></td>
+            `;
+            tbody.appendChild(tr);
+        });
+        loadSavedState();
+    }
+
+    let sortDirection = {};
+    function sortTable(columnIndex) {
+        let table = document.getElementById("leadsTable");
+        let rows, switching, i, x, y, shouldSwitch;
+        switching = true;
+        
+        // קביעת כיוון המיון (עולה/יורד)
+        let dir = sortDirection[columnIndex] === "asc" ? "desc" : "asc";
+        sortDirection[columnIndex] = dir;
+
+        while (switching) {
+            switching = false;
+            rows = table.rows;
+            for (i = 1; i < (rows.length - 1); i++) {
+                shouldSwitch = false;
+                x = rows[i].getElementsByTagName("TD")[columnIndex];
+                y = rows[i+1].getElementsByTagName("TD")[columnIndex];
+                
+                let xVal = x.textContent || x.innerText;
+                let yVal = y.textContent || y.innerText;
+
+                if (dir === "asc") {
+                    if (xVal.localeCompare(yVal, 'he') > 0) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                } else if (dir === "desc") {
+                    if (xVal.localeCompare(yVal, 'he') < 0) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                }
+            }
+            if (shouldSwitch) {
+                rows[i].parentNode.insertBefore(rows[i+1], rows[i]);
+                switching = true;
+            }
+        }
+    }
+
+    let showOnlyUncalled = false;
+
+    function loadSavedState() {
+        let rows = document.querySelectorAll("#leadsTable tbody tr");
+        rows.forEach(row => {
+            let id = row.getAttribute("data-id");
+            let isChecked = localStorage.getItem("call_" + id) === "true";
+            let checkbox = row.querySelector(".call-checkbox");
+            if (checkbox) checkbox.checked = isChecked;
+            if (isChecked) row.classList.add("called-row");
+
+            let savedNote = localStorage.getItem("note_" + id);
+            let noteInput = row.querySelector(".notes-input");
+            if (savedNote && noteInput) {
+                noteInput.value = savedNote;
+            }
+        });
+    }
+
+    function updateRowStatus(checkbox) {
+        let row = checkbox.closest("tr");
+        let id = row.getAttribute("data-id");
+        if (checkbox.checked) {
+            row.classList.add("called-row");
+            localStorage.setItem("call_" + id, "true");
+        } else {
+            row.classList.remove("called-row");
+            localStorage.setItem("call_" + id, "false");
+        }
+        applyFilters();
+    }
+
+    function saveNote(input) {
+        let row = input.closest("tr");
+        let id = row.getAttribute("data-id");
+        localStorage.setItem("note_" + id, input.value);
+    }
+
+    function filterTable() { applyFilters(); }
+
+    function toggleUncalledFilter() {
+        showOnlyUncalled = !showOnlyUncalled;
+        let btn = document.getElementById("filterUncalledBtn");
+        if (showOnlyUncalled) {
+            btn.classList.add("active");
+            btn.innerText = "מציג רק כאלה שעוד לא התקשרתי (לחץ להצגת הכל)";
+        } else {
+            btn.classList.remove("active");
+            btn.innerText = "הצג רק כאלה שעוד לא התקשרתי";
+        }
+        applyFilters();
+    }
+
+    function applyFilters() {
+        let input = document.getElementById("searchInput");
+        let filter = input.value.toLowerCase();
+        let table = document.getElementById("leadsTable");
+        let tr = table.getElementsByTagName("tr");
+
+        for (let i = 1; i < tr.length; i++) {
+            let row = tr[i];
+            let td = row.getElementsByTagName("td");
+            let checkbox = row.querySelector(".call-checkbox");
+            let isChecked = checkbox ? checkbox.checked : false;
+            
+            let rowContainsFilter = false;
+            for (let j = 0; j < td.length; j++) {
+                if (td[j]) {
+                    let text = td[j].innerText + " " + (td[j].querySelector("input") ? td[j].querySelector("input").value : "");
+                    if (text.toLowerCase().indexOf(filter) > -1) {
+                        rowContainsFilter = true;
+                        break;
+                    }
+                }
+            }
+
+            let matchesUncalled = !showOnlyUncalled || !isChecked;
+
+            if (rowContainsFilter && matchesUncalled) {
+                row.style.display = "";
+            } else {
+                row.style.display = "none";
+            }
+        }
+    }
+
+    window.onload = () => renderTable();
+</script>
+
+</body>
+</html>
